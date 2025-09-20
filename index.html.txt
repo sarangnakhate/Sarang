@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dijkstra Algorithm Animation</title>
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; }
+    #graph { height: 500px; width: 80%; margin: auto; border: 1px solid #ccc; }
+    #controls { margin: 15px; }
+    button { padding: 8px 14px; margin: 5px; font-size: 14px; }
+    #output { margin-top: 15px; text-align: left; width: 60%; margin-left: auto; margin-right: auto; }
+  </style>
+</head>
+<body>
+  <h2>Dijkstra’s Algorithm Animation</h2>
+  <div id="graph"></div>
+  <div id="controls">
+    <button onclick="prevStep()">◀ Previous Step</button>
+    <button onclick="nextStep()">Next Step ▶</button>
+  </div>
+  <div id="output"></div>
+
+  <script>
+    // ---------------------------
+    // Step 1: Define Graph
+    // ---------------------------
+    const edges = [
+      ["A", "B", 4],
+      ["A", "C", 2],
+      ["B", "C", 5],
+      ["B", "D", 10],
+      ["C", "E", 3],
+      ["E", "D", 4],
+      ["D", "F", 11]
+    ];
+    const nodes = [...new Set(edges.flatMap(e => [e[0], e[1]]))]
+      .map(n => ({ id: n, label: n }));
+    const edgeList = edges.map(e => ({
+      from: e[0], to: e[1], label: String(e[2])
+    }));
+
+    const container = document.getElementById("graph");
+    const network = new vis.Network(container, { 
+      nodes: new vis.DataSet(nodes), 
+      edges: new vis.DataSet(edgeList) 
+    }, { layout: { improvedLayout: true } });
+
+    // ---------------------------
+    // Step 2: Dijkstra Algorithm with Steps
+    // ---------------------------
+    function dijkstraSteps(start) {
+      let dist = {}, parent = {}, visited = new Set(), pq = [];
+      let steps = [];
+
+      nodes.forEach(n => { dist[n.id] = Infinity; parent[n.id] = null; });
+      dist[start] = 0;
+      pq.push([0, start]);
+
+      while (pq.length > 0) {
+        pq.sort((a, b) => a[0] - b[0]); // priority queue
+        let [d, u] = pq.shift();
+        if (visited.has(u)) continue;
+        visited.add(u);
+
+        // Save step
+        steps.push({ node: u, dist: { ...dist }, parent: { ...parent } });
+
+        edges.filter(e => e[0] === u).forEach(([from, v, w]) => {
+          if (dist[u] + w < dist[v]) {
+            dist[v] = dist[u] + w;
+            parent[v] = u;
+            pq.push([dist[v], v]);
+          }
+        });
+      }
+      return steps;
+    }
+
+    const steps = dijkstraSteps("A");
+    let currentStep = 0;
+
+    // ---------------------------
+    // Step 3: Draw Step
+    // ---------------------------
+    function showStep(index) {
+      const step = steps[index];
+      if (!step) return;
+
+      // Node colors
+      const colors = {};
+      nodes.forEach(n => { colors[n.id] = "#ddd"; });
+      colors[step.node] = "skyblue";
+
+      // Highlight final shortest-path tree
+      let edgeColors = {};
+      if (index === steps.length - 1) {
+        for (let child in step.parent) {
+          const p = step.parent[child];
+          if (p) edgeColors[p + "-" + child] = "red";
+        }
+      }
+
+      const edgeData = edgeList.map(e => ({
+        ...e,
+        color: { color: edgeColors[e.from + "-" + e.to] || "black" },
+        width: edgeColors[e.from + "-" + e.to] ? 3 : 1
+      }));
+
+      network.setData({ 
+        nodes: new vis.DataSet(nodes.map(n => ({
+          ...n, 
+          color: { background: colors[n.id] }
+        }))), 
+        edges: new vis.DataSet(edgeData) 
+      });
+
+      // Distance table
+      let html = `<h3>Step ${index + 1}: Visiting ${step.node}</h3><ul>`;
+      for (let n in step.dist) {
+        html += `<li>${n}: ${step.dist[n] === Infinity ? "∞" : step.dist[n]}</li>`;
+      }
+      html += "</ul>";
+      document.getElementById("output").innerHTML = html;
+    }
+
+    // ---------------------------
+    // Step 4: Buttons
+    // ---------------------------
+    function nextStep() {
+      if (currentStep < steps.length - 1) currentStep++;
+      showStep(currentStep);
+    }
+
+    function prevStep() {
+      if (currentStep > 0) currentStep--;
+      showStep(currentStep);
+    }
+
+    // Start at step 0
+    showStep(0);
+  </script>
+</body>
+</html>
